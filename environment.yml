@@ -5,9 +5,10 @@ channels:
 dependencies:
   - scikit-learn
   - jupyter_contrib_nbextensions
-  - pyquaternion
   - pyserial
-  - numpy_stl
+  - numpy
+  - numpy-stl
+  - pyquaternion
   - pandas
   - bqplot
   - ipywidgets
