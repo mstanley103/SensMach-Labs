@@ -8,7 +8,6 @@ dependencies:
   - pyserial
   - numpy
   - numpy-stl
-  - pyquaternion
   - pandas
   - bqplot
   - ipywidgets
