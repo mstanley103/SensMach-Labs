@@ -3,6 +3,17 @@ channels:
   - conda-forge
   - defaults
 dependencies:
+  - scikit-learn
+  = jupyter_contrib_nbextensions
+  - pyquaternion
+  - pyserial
+  - numpy_stl
+  - pandas
+  - bqplot
+  - ipywidgets
+  - scikit-image
+  - keras
+  - tensorflow
   - blas==1.0=mkl
   - parso==0.7.0=py_0
   - termcolor==1.1.0=py_2
