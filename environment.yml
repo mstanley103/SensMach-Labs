@@ -4,7 +4,7 @@ channels:
   - defaults
 dependencies:
   - scikit-learn
-  = jupyter_contrib_nbextensions
+  - jupyter_contrib_nbextensions
   - pyquaternion
   - pyserial
   - numpy_stl
