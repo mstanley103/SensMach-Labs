@@ -1,0 +1,54 @@
+
+.hidden {
+  display: none;
+}
+h1 {
+	 text-align: center 
+}
+
+footer {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  background-color: gray;
+  color: white;
+  text-align: center;
+}
+
+#notSupported {
+  background-color: red;
+  color: white;
+  padding: 1em;
+}
+
+#logger-controls {
+	background: lime
+}
+#logger-console {
+	background: silver
+}
+
+button {
+	padding: .5em;
+	margin: 0.5em;
+}
+
+#message-to-send {
+	padding: .5em;
+	margin: 0.5em;
+}
+#logEnable {
+	padding: .5em;
+	left-margin: 0.5em;
+	right-margin: 0em;
+}
+label {
+	padding: .5em;
+	left-margin: 0em;
+	right-margin: 0.5em;
+}
+select {
+	padding: .5em;
+	right-margin: 0.5em;
+}

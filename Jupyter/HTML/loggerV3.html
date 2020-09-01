@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<title>Data Logger</title>
+		<!-- Copyright 2020 by Michael Stanley -->
+		<style>		
+.hidden {
+  display: none;
+}
+h1 {
+	 text-align: center 
+}
+
+footer {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  background-color: gray;
+  color: white;
+  text-align: center;
+}
+
+#notSupported {
+  background-color: red;
+  color: white;
+  padding: 1em;
+}
+
+#logger-controls {
+	background: lime
+}
+#logger-console {
+	background: silver
+	height: 200px;
+}
+
+button {
+	padding: .5em;
+	margin: 0.5em;
+}
+
+#message-to-send {
+	padding: .5em;
+	margin: 0.5em;
+}
+#logEnable {
+	padding: .5em;
+	left-margin: 0.5em;
+	right-margin: 0em;
+}
+label {
+	padding: .5em;
+	left-margin: 0em;
+	right-margin: 0.5em;
+}
+select {
+	padding: .5em;
+	right-margin: 0.5em;
+}
+		</style>
+
+	</head>
+	<body>
+		<h1>Serial Port Data Logger</h1>
+		<div id="notSupported" class="hidden">
+			<b>Web Serial</b>, and/or <b>Native File System APIs</b>, is not currently enabled on this device!
+			<p>In order to use this logger, you must have enabled your browser's &quot;Experimental Web Platform Features&quot; and 
+			&quot;Native File System API&quot;.
+			If you haven't already done that, copy and paste the appropriate link below to your browser's URL field, then enable those features in
+			the resulting screen.</p>
+			<ul>
+			<li>chrome://flags/#enable-experimental-web-platform-features
+			<li>opera://flags/#enable-experimental-web-platform-features
+			<li>edge://flags/#enable-experimental-web-platform-features
+			</ul>
+		</div>
+
+		<div id="logger-controls">	
+			<label for="baudrate">Port speed:</label>
+			<select name="baudrate" id="baudrate">
+			  <option value=9600>9,600 bit/s</option>
+			  <option value=19200>19,200 bit/s</option>
+			  <option value=38400>38,400 bit/s</option>
+			  <option value=57600>57,600 bit/s</option>
+			  <option value=115200>115,200 bit/s</option>
+			  <option value=230400>230,400 bit/s</option>
+			</select>
+
+			<button id="connect-to-serial" onclick='connectToBoard()'>Connect to board</button>
+			<button id="release" onclick='releaseBoard()'>Disconnect</button>
+			<input type="checkbox" id="logEnable" name="logEnable" disabled=true onclick='checkboxChanged()'>
+			<label for="logEnable">Capture data stream</label>
+			<button id="cls" onclick='clearAppConsole()'>Clear Console</button>
+			<button id="save-data" disabled=true onclick='saveAs()'>SaveAs</button>
+			<button id="help" onclick="window.location.href='../HTML/helpV3.html';">Help &amp; Licensing</button>
+			<br><input type="text" id="message-to-send" disabled="true">
+			<button type="send" id="send" disabled="true" onclick='sendMessage()'>Send command to board</button>
+			Seconds counter: <span id="seconds-counter">0</span>
+			
+		</div> 
+		<div id="logger-console"></div>
+
+		<footer>
+			&copy; 2020 by <a href="mailto:Mike.Stanley@ieee.org">Michael Stanley</a><br>
+			Last revised: 31 August 2020
+		</footer>
+		<script>
+		// Copyright 2020 by Michael Stanley
+		// This class is responsible for managing the serial port, accumulating new records from that port
+		// and assigning sample numbers
+
+		"use strict";
+
+		window.dl = class DataLogger {
+			constructor() {
+				this.encoder = new TextEncoder();
+				this.decoder = new TextDecoder();
+				this.loggingEnabled = false;  // Records are actually read continuously once connected
+											  // but we only keep them when loggingEnabled==true
+				this.loggedData = '';         // This is the data we've received with prepended sample numbers
+				this.counter=0;		          // This is the number of samples received in the current logging session
+				this.countup=0;               // Holds the timer that counts seconds while logging
+				this.disconnect=false;		  // Setting this true will force the readLoop to terminate (it will be set back to false as we exit that loop)
+			}
+			
+			// The init() function will pop a selection box for you to choose your port, then connect and run the main loop.
+			// It only runs once for a given connect session.
+			async init(baudRate) {
+				if ('serial' in navigator) {
+					try {
+						this.port = await navigator.serial.requestPort();
+						console.log("completed port release");
+						await this.port.open({ baudrate: baudRate });
+						console.log("completed open port");
+						this.reader = this.port.readable.getReader();
+						this.writer = this.port.writable.getWriter();
+						console.log("completed getting reader and writer");
+					}
+					catch (err) {
+						console.error('There was an error opening the serial port:', err);
+					}
+					console.log("stepping int readLoop");
+					await this.readLoop();
+					console.log("exited readLoop")
+					await this.release();
+					console.log("completed port release");
+				}
+				else {
+					console.error('The web serial API must be enabled in your browser before running this code.');
+				}
+			}
+			async hardDisconnect() {
+				this.disconnect=true;
+			}
+			async release() {
+					console.log("about to release reader");
+					await this.reader.releaseLock();
+					console.log("reader released, now do writer");
+					await this.writer.releaseLock();
+					console.log("writer released. Now close the port");
+					await this.port.close();
+					console.log("port closed");
+			}
+			// Clear the loggingEnabled flag, which causes the ReadLoop to stop accumulating new records as they are red
+			stop() {
+				this.loggingEnabled=false;
+				clearInterval(this.countup);
+			}
+			// Start logging
+			start() {
+				this.loggedData = '';
+				this.loggingEnabled=true;
+				this.counter = 0;
+				this.countup = setInterval(function() {
+					document.getElementById('seconds-counter').textContent = timer.increment_if_enabled();
+				}, 1000);
+			}
+			// Send a command to the board over the serial port
+			async write(data) {
+				const buffer = this.encoder.encode(data);
+				return await this.writer.write(buffer);
+			}
+			// Data received from the serial port is not necessarily "clumped" in a natural newline fashion, even if it was
+			// sent that way.  This is a result of buffers in the middle of the transmission path (usually on the Windows side).
+			// This function will take a new block (which we've forced to terminate in a new line by the calling function),
+			// split it on new line boundaries and insert sample numbers at the beginning of each record.
+			addSampleNumbers(newBlock) {		
+				var index=0;
+				var newRecords = '';
+				var lines = newBlock.replace(/\r/g, "").replace(/\n\n/g, "\n").split(/\n/);
+				while (index < lines.length  && lines[index].length>0) {
+					this.counter++;
+					var recNum = this.counter.toString() + ', ';
+					newRecords += recNum + lines[index] + '\n';
+					index++;
+				}
+				return(newRecords);
+			}
+
+			// This is the main loop for the serial port reader.  It runs continuously until you either disconnect or reset your board or
+			// reload the HTML page containing the logger interface.
+			async readLoop() {
+				let connected=true;
+				var firstLine = true;
+				var newBlock = '';
+				while (this.port.readable && !this.disconnect) {  // this is the top levelloop
+					try {
+						const { value, done } = await this.reader.read();  // read a block of data
+						if (value) {
+							var s = this.decoder.decode(value); // decode the data
+							var lastChar = s.charAt(s.length-1);
+							if (firstLine == false) {	// look for new line boundaries.  
+														// There are enough showing up where we expect them that it's a reasonable place
+														// to insert additional processing.					
+								newBlock += s;  // build things up a line at a time
+								if (lastChar == '\n') { // only append to loggedData on new line boundaries
+									if (this.loggingEnabled) this.loggedData += this.addSampleNumbers(newBlock);  // add in line numbers
+									newBlock = '';
+								}
+							} else {
+								// discard the first line as it may be incomplete
+								if (lastChar == '\n') {
+									firstLine=false;
+								}
+							}
+						}
+						if (done) {  // break out if the board has been disconnected
+							console.log('[readLoop] DONE', done);
+							break;
+						}
+						this.write('8'); // send keep-alive packet to the board.  Without this, your connection will be lost after a few seconds.
+					}
+					catch (err) {
+						const errorMessage = "Board connection lost";
+						connected=false;
+						console.log(errorMessage);
+						console.log(err);
+						break;
+					}
+				}
+				this.disconnect=false;
+				return;
+			}
+		}
+		window.lt = class LogTimer {
+			constructor() {
+				this.enabled = false;
+				this.seconds=0;
+			}
+			start() {
+				this.seconds = 0;
+				this.enabled = true;
+			}
+			stop() {
+				this.enabled=false;
+			}
+			increment_if_enabled() {
+				if (this.enabled) this.seconds++;
+				return(this.seconds);
+			}
+		}
+		var logger = new window.dl();
+		var timer = new window.lt();
+		
+		async function saveAs() {
+			try {
+				const options = {
+					type: 'save-file',
+					accepts: [{
+					  description: 'Comma Separated Format',
+					  extensions: ['csv'],
+					  mimeTypes: ['.csv'],
+				}]};
+				var handle = await window.chooseFileSystemEntries(options);
+				const writable = await handle.createWritable();
+				await writable.write(logger.loggedData);
+				await writable.close();
+			} catch (err) {
+				console.error(err.name, err.message);
+			}
+		}
+		async function releaseBoard() {
+			logger.hardDisconnect();
+		}
+		async function connectToBoard() {
+			clearAppConsole();
+			document.getElementById('message-to-send').disabled = false;
+			document.getElementById('send').disabled = false;
+			document.getElementById('logEnable').disabled=false;
+			try {
+				await logger.init(document.getElementById('baudrate').value);
+			}
+			catch (err) {
+			}
+			if (true) {
+				// reset the form
+				const errorMessage = "The board connection has been lost.  If you did this using the \"Disconnect\" button,\n" +
+				"you can probably just reconnect.  But if you are having other problems, you may need to try a combination \n" +
+				"of the following:\n" +
+				"* Reload this application in your browser (or re-execute Jupyter cell if hosted there)\n" +
+				"* Reconnect your cable if disconnected\n" +
+				"* Reset your board (you may need to do this a couple times, make sure you have a blinking LED)\n" + 
+				"* Click: \"Connect to board\" to reconnect";
+				//document.getElementById('logger-console').innerText = errorMessage;
+				writeAppConsole(errorMessage);
+				document.getElementById('logEnable').checked = false;
+				document.getElementById('logEnable').disabled=true;
+				document.getElementById('message-to-send').disabled = true;
+				document.getElementById('send').disabled = true;	
+				document.getElementById('save-data').disabled=false;			
+			}
+		};
+		
+		async function checkboxChanged() {
+			if (document.getElementById('logEnable').checked == true) {
+				clearAppConsole();
+				document.getElementById('save-data').disabled=true;
+				timer.start();
+				logger.start();
+			} 	else {
+				document.getElementById('save-data').disabled=false
+				logger.stop();
+				timer.stop();
+				writeAppConsole(logger.loggedData);
+				//document.getElementById('logger-console').innerText += logger.loggedData;
+			}
+		};
+
+		async function sendMessage() {
+			event.preventDefault();
+			logger.write(document.getElementById('message-to-send').value);
+		};
+
+		async function writeAppConsole(s) {
+			document.getElementById('logger-console').innerText = s;
+		}
+		async function appendToAppConsole(s) {
+			document.getElementById('logger-console').innerText += s;
+		}
+		async function clearAppConsole() {
+			//const loggerConsole = document.getElementById('logger-console');
+			document.getElementById('logger-console').innerText = '';
+		}
+
+	  </script>		
+
+
+	</body>
+</html>

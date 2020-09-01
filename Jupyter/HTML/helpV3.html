@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Help</title>
+	<link rel="stylesheet" href="style.css">
+    <script src="scripts/logger.js"></script>
+</head>
+<body>
+
+	<h1>Serial Port Data Logger Help</h1>
+	Serial Port Data Logger &copy; 2020 by <a href="mailto:Mike.Stanley@ieee.org">Michael Stanley</a><br>
+	Licensed under the creative commons <a href="https://creativecommons.org/licenses/by-nc/4.0/">Attribution-NonCommercial 4.0 International (CC By-NC 4.0</a> 
+	license.  
+	<br>Please contact the author for commercial licensing terms.
+	<br>Last revised: 26 August 2020
+	<h2>Introduction</h2>
+	This application is intended to enable you to capture sensor data from an embedded development board which connects
+	to your PC via a serial port interface.  Unlike most data logger applications to date, this application runs completely in
+	your browser.  That is, it executes on the client side of the PC-web interface.  It is written completely in HTML5/CSS/Javascript.
+	This offers a number of advantages (a single server can support many users) but does mean that you have to keep captured data in
+	memory until you explicitly download a data file to your PC.  This limits the length of the logging session to the memory available
+	to your browser.  For academic settings, this will rarely be a limitation.
+	<p>This implementation was purposely keep relatively simple so that students might easily understand the source code and adapt
+	it for their use.
+	<h2>Prerequisites</h2>
+	<p>In order to use this logger, you must have enabled your browser's Experimental Web Platform Features. 
+	If you haven't already done that, copy and paste the appropriate link below to your browser's URL field, then enable those features in
+	the resulting screen.</p>
+	<ul>
+		<li>chrome://flags/#enable-experimental-web-platform-features
+		<li>opera://flags/#enable-experimental-web-platform-features
+		<li>edge://flags/#enable-experimental-web-platform-features
+	</ul>
+	<p>The web serial API enables the browser to communicate with serial ports on your PC.  This application lets you communicate
+	with embedded sensor boards which stream sensor readings in textual comma separated form (csv) over to your PC.  This is not the
+	most efficient method for conveying data, but it has the advantage of being simple and human readable.  You must have installed a 
+	companion app to your embedded board for this to work properly.  The only hard requirement on that companion app is that it stream data
+	in CSV format.  Whatever is streamed will be collected into your log file (after being prepended with sample numbers).
+    <p>This application also makes use of the Native File System API for storing files on your PC.  Again, you may have to explicitly
+	enable these features as was done for the web serial API.
+    <h2>Controls</h2>
+	<h3>Select your baud rate</h3>
+	<label for="baudrate">Port speed:</label>
+	<select name="baudrate" id="baudrate">
+	  <option value=9600>9,600 bit/s</option>
+	  <option value=19200>19,200 bit/s</option>
+	  <option value=38400>38,400 bit/s</option>
+	  <option value=57600>57,600 bit/s</option>
+	  <option value=115200>115,200 bit/s</option>
+	  <option value=230400>230,400 bit/s</option>
+	</select><br>
+	This application supports a number of possible serial port baud rates.  Select the value which matches your embedded code implementation.
+	<h3>Connecting to your board</h3>
+	<button id="connect-to-serial">Connect to board</button>
+	<p>Clicking this button brings up a selector (see figure) showing the various serial port devices
+	connected to your PC.  Select the port which corresponds to your development board and click 'Connect'.
+	At that point, the serial port will be opened and the "Capture data stream" checkbox will be enabled.<BR>
+	<img src="images/PortSelector.png">
+	<h3>Starting &amp; stoping logging</h3>
+	<input type="checkbox" id="logEnable" name="logEnable" disabled=true)>
+	<label for="logEnable"> Capture data stream</label>
+	<p>Check this control to start collecting data from the serial port.  Data
+	is stored (and added to over time) in an internal variable in your browser.  When you uncheck the checkbox, you will stop accumulating
+	new records.  Once you uncheck the control, stored records will be shown in the logger console.  Data is not saved to disk until you
+	click the SaveAs button described below.  If you recheck the checkbox, prior data is cleared out before you begin to 
+	accumulate new data records.
+	<h3>Clear console</h3>
+	<button id="cls" onclick='clearConsole()'>Clear Console</button><p>Click this button to clear the console.  This button does NOT clear the
+	internal record store, which is still available for download.
+	<h3>Download collected data</h3>
+	<button id="save-data">SaveAs</button>
+	<p>Click this button to initiate a download of saved records to the filename selected
+	in the resulting file browser.
+	<h3>Sending commands to your development board</h3>
+    <input type="text" id="message-input" >
+    <button type="submit" id="submit-button" >Send command to board</button>
+	<p>Use these controls to send a message to your embedded board.  For the Arduino Nano 33 BLE Sense companion
+	application, this would be digits 0 through 7, which simply set the color of the on-board tricolor LED.  Command value '8' is reserved for 
+	keep-alive packets that are periodically sent to the board to keep the serial port channel active.
+	<h2>For more information...</h2>
+	As mentioned, this application is dependent upon the experimental Web Serial API interface.  The following resources will get
+	you going if you would like to understand what is going on under the hood.
+	<ul>
+	<li><a href="https://wicg.github.io/serial/">W3C Community Group Draft Report: Serial API Living Document</a>
+	<li><a href="https://github.com/WICG/serial/blob/gh-pages/EXPLAINER.md">Serial API Explainer</a>
+	<li><a href="https://dev.to/unjavascripter/the-amazing-powers-of-the-web-web-serial-api-3ilc">The amazing powers of the web: Web Serial API</a>
+	</ul>
+</body>
+</html>
