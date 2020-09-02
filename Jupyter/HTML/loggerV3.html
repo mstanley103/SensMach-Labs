@@ -94,7 +94,7 @@ select {
 			<label for="logEnable">Capture data stream</label>
 			<button id="cls" onclick='clearAppConsole()'>Clear Console</button>
 			<button id="save-data" disabled=true onclick='saveAs()'>SaveAs</button>
-			<button id="help" onclick="window.location.href='../HTML/helpV3.html';">Help &amp; Licensing</button>
+			<button id="help" onclick="window.location.href='helpV3.html';">Help &amp; Licensing</button>
 			<br><input type="text" id="message-to-send" disabled="true">
 			<button type="send" id="send" disabled="true" onclick='sendMessage()'>Send command to board</button>
 			Seconds counter: <span id="seconds-counter">0</span>
@@ -112,6 +112,8 @@ select {
 		// and assigning sample numbers
 
 		"use strict";
+		const notSupported = document.getElementById('notSupported');
+		notSupported.classList.toggle('hidden', ('serial' in navigator) );
 
 		window.dl = class DataLogger {
 			constructor() {
