@@ -207,7 +207,7 @@ select {
 				while (index < lines.length  && lines[index].length>0) {
 					this.counter++;
 					var recNum = this.counter.toString() + ', ';
-					newRecords += recNum + lines[index] + '\n';
+					newRecords += recNum + lines[index] + '\r\n';
 					index++;
 				}
 				return(newRecords);
@@ -303,6 +303,7 @@ select {
 			document.getElementById('message-to-send').disabled = false;
 			document.getElementById('send').disabled = false;
 			document.getElementById('logEnable').disabled=false;
+			document.getElementById('seconds-counter').textContent = "0";
 			try {
 				await logger.init(document.getElementById('baudrate').value);
 			}
